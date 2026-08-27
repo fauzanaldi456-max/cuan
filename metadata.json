@@ -1,0 +1,6 @@
+{
+  "name": "CuanTerus Bosku",
+  "description": "Platform analisa saham Indonesia dengan gaya AI Jamet, dashboard interaktif, bandarmologi, valuasi, teknikal, dan manajemen portofolio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
