@@ -1,0 +1,167 @@
+{
+  "name": "Telegram Bot Commands",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"]
+      },
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "telegram-webhook-id",
+      "credentials": {
+        "telegramApi": {
+          "id": "3",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.message.text}}",
+              "operation": "startsWith",
+              "value2": "/balance"
+            }
+          ]
+        }
+      },
+      "name": "Is Balance Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.message.text}}",
+              "operation": "startsWith",
+              "value2": "/portfolio"
+            }
+          ]
+        }
+      },
+      "name": "Is Portfolio Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": {
+          "__rl": true,
+          "value": "={{$env.GOOGLE_SHEETS_ID}}",
+          "mode": "id"
+        },
+        "range": "Balance!A2:C2",
+        "options": {}
+      },
+      "name": "Get Balance",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [650, 150],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "2",
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": {
+          "__rl": true,
+          "value": "={{$env.GOOGLE_SHEETS_ID}}",
+          "mode": "id"
+        },
+        "range": "Holdings!A2:K",
+        "options": {}
+      },
+      "name": "Get Holdings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [650, 350],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "2",
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const balance = parseFloat(items[0].json[1]);\nconst formatted = new Intl.NumberFormat('id-ID').format(balance);\n\nreturn [{\n  json: {\n    chatId: items[0].json.message.chat.id,\n    text: `💰 *Saldo RDN*\\n\\nBalance: Rp ${formatted}\\n\\n_Updated: ${new Date().toLocaleString('id-ID')}_`\n  }\n}];"
+      },
+      "name": "Format Balance Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "const holdings = items[0].json.slice(1); // Skip header\n\nif (holdings.length === 0) {\n  return [{\n    json: {\n      chatId: items[0].json.message.chat.id,\n      text: '📊 *Portfolio*\\n\\nBelum ada holdings.'\n    }\n  }];\n}\n\nlet message = '📊 *Portfolio Holdings*\\n\\n';\nlet totalValue = 0;\nlet totalPL = 0;\n\nholdings.forEach((row, i) => {\n  const symbol = row[1];\n  const name = row[2];\n  const avgPrice = parseFloat(row[3]);\n  const currentPrice = parseFloat(row[4]);\n  const lots = parseInt(row[5]);\n  const shares = lots * 100;\n  const value = currentPrice * shares;\n  const pl = (currentPrice - avgPrice) * shares;\n  const plPercent = ((currentPrice - avgPrice) / avgPrice * 100).toFixed(2);\n  \n  totalValue += value;\n  totalPL += pl;\n  \n  const plEmoji = pl > 0 ? '📈' : pl < 0 ? '📉' : '➖';\n  const plSign = pl > 0 ? '+' : '';\n  \n  message += `\\n${i+1}. *${symbol}* (${lots} lot)\\n`;\n  message += `   Avg: Rp ${avgPrice.toLocaleString('id-ID')}\\n`;\n  message += `   Now: Rp ${currentPrice.toLocaleString('id-ID')}\\n`;\n  message += `   P/L: ${plEmoji} ${plSign}${plPercent}%\\n`;\n});\n\nmessage += `\\n━━━━━━━━━━━━━━━━\\n`;\nmessage += `Total Value: Rp ${totalValue.toLocaleString('id-ID')}\\n`;\nmessage += `Total P/L: Rp ${totalPL.toLocaleString('id-ID')}\\n`;\nmessage += `\\n_Updated: ${new Date().toLocaleString('id-ID')}_`;\n\nreturn [{\n  json: {\n    chatId: items[0].json.message.chat.id,\n    text: message\n  }\n}];"
+      },
+      "name": "Format Portfolio Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chatId}}",
+        "text": "={{$json.text}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "name": "Send Telegram Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1050, 275],
+      "credentials": {
+        "telegramApi": {
+          "id": "3",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[
+        {"node": "Is Balance Command", "type": "main", "index": 0},
+        {"node": "Is Portfolio Command", "type": "main", "index": 0}
+      ]]
+    },
+    "Is Balance Command": {
+      "main": [[{"node": "Get Balance", "type": "main", "index": 0}]]
+    },
+    "Is Portfolio Command": {
+      "main": [[{"node": "Get Holdings", "type": "main", "index": 0}]]
+    },
+    "Get Balance": {
+      "main": [[{"node": "Format Balance Response", "type": "main", "index": 0}]]
+    },
+    "Get Holdings": {
+      "main": [[{"node": "Format Portfolio Response", "type": "main", "index": 0}]]
+    },
+    "Format Balance Response": {
+      "main": [[{"node": "Send Telegram Reply", "type": "main", "index": 0}]]
+    },
+    "Format Portfolio Response": {
+      "main": [[{"node": "Send Telegram Reply", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "pinData": {},
+  "versionId": "1"
+}

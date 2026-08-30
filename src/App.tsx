@@ -9,31 +9,24 @@ import { AddHoldingModal } from './components/AddHoldingModal';
 import { SettingsModal } from './components/SettingsModal';
 import {
   INITIAL_STOCKS,
-  INITIAL_HOLDINGS,
-  INITIAL_HISTORY,
   INITIAL_NOTIFICATIONS,
   generateJametStock,
 } from './data/stocks';
 import { StockData, PortfolioHolding, HistoryItem, MarketNotification } from './types';
 import { Sparkles, CheckCircle2, Zap } from 'lucide-react';
+import api from './services/data';
+import './services/webhook-client'; // Initialize webhook listeners
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'portfolio' | 'history'>('dashboard');
   const [stocksMap, setStocksMap] = useState<Record<string, StockData>>(INITIAL_STOCKS);
   const [currentSymbol, setCurrentSymbol] = useState<string>('BBCA');
-  const [holdings, setHoldings] = useState<PortfolioHolding[]>(() => {
-    const saved = localStorage.getItem('cuanterus_holdings');
-    return saved ? JSON.parse(saved) : INITIAL_HOLDINGS;
-  });
-  const [history, setHistory] = useState<HistoryItem[]>(() => {
-    const saved = localStorage.getItem('cuanterus_history');
-    return saved ? JSON.parse(saved) : INITIAL_HISTORY;
-  });
-  const [balance, setBalance] = useState<number>(() => {
-    const saved = localStorage.getItem('cuanterus_balance');
-    return saved ? JSON.parse(saved) : 45230000;
-  });
+  const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [balance, setBalance] = useState<number>(0);
   const [notifications, setNotifications] = useState<MarketNotification[]>(INITIAL_NOTIFICATIONS);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Modals
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
@@ -43,18 +36,46 @@ export default function App() {
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<{ title: string; desc: string; type: 'cuan' | 'info' | 'gas' } | null>(null);
 
-  // Save changes to localStorage
+  // Load data from API on mount
   useEffect(() => {
-    localStorage.setItem('cuanterus_holdings', JSON.stringify(holdings));
-  }, [holdings]);
+    loadInitialData();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('cuanterus_history', JSON.stringify(history));
-  }, [history]);
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  useEffect(() => {
-    localStorage.setItem('cuanterus_balance', JSON.stringify(balance));
-  }, [balance]);
+      // Load balance
+      const balanceRes = await api.balance.get();
+      if (balanceRes.success && balanceRes.data) {
+        setBalance(balanceRes.data.balance);
+      }
+
+      // Load holdings
+      const holdingsRes = await api.holdings.getAll();
+      if (holdingsRes.success && holdingsRes.data) {
+        setHoldings(holdingsRes.data);
+      }
+
+      // Load history
+      const historyRes = await api.history.getAll();
+      if (historyRes.success && historyRes.data) {
+        setHistory(historyRes.data);
+      }
+
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Failed to load initial data:', err);
+      setError(err.message || 'Failed to load data from server');
+      setLoading(false);
+      showToast(
+        '⚠️ Connection Error',
+        'Could not connect to backend. Using offline mode.',
+        'info'
+      );
+    }
+  };
 
   // Show auto-dismiss toast
   const showToast = (title: string, desc: string, type: 'cuan' | 'info' | 'gas' = 'info') => {
@@ -68,7 +89,7 @@ export default function App() {
   const currentStock = stocksMap[currentSymbol] || generateJametStock(currentSymbol);
 
   // Handle Search / Select Stock
-  const handleSelectStock = (symbol: string) => {
+  const handleSelectStock = async (symbol: string) => {
     const cleanSym = symbol.toUpperCase().trim();
     if (!cleanSym) return;
 
@@ -82,18 +103,27 @@ export default function App() {
 
     // Add to history if not existing recently
     const targetStock = stocksMap[cleanSym] || generateJametStock(cleanSym);
-    const newHistoryItem: HistoryItem = {
-      id: `hist-${Date.now()}`,
-      symbol: cleanSym,
-      name: targetStock.name,
-      date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
-      price: targetStock.price,
-      score: targetStock.scores.total,
-      status: targetStock.scores.verdict === 'BULLISH' ? 'Bullish' : targetStock.scores.verdict === 'TO THE MOON' ? 'To the Moon' : targetStock.scores.verdict === 'BERDARAH' ? 'Berdarah' : 'Sideways',
-      color: targetStock.scores.total >= 70 ? 'primary' : targetStock.scores.total >= 50 ? 'tertiary' : 'error',
-    };
+    
+    try {
+      const response = await api.history.create({
+        symbol: cleanSym,
+        name: targetStock.name,
+        price: targetStock.rawPrice,
+        score: targetStock.scores.total,
+        verdict: targetStock.scores.verdict,
+        status: targetStock.scores.verdict === 'BULLISH' ? 'Bullish' : targetStock.scores.verdict === 'TO THE MOON' ? 'To the Moon' : targetStock.scores.verdict === 'BERDARAH' ? 'Berdarah' : 'Sideways',
+      });
 
-    setHistory((prev) => [newHistoryItem, ...prev.filter((h) => h.symbol !== cleanSym)]);
+      if (response.success && response.data) {
+        // Reload history from API
+        const historyRes = await api.history.getAll();
+        if (historyRes.success && historyRes.data) {
+          setHistory(historyRes.data);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to add to history:', err);
+    }
   };
 
   // Handle GAS! AI Scan
@@ -106,63 +136,135 @@ export default function App() {
   };
 
   // Handle Top Up
-  const handleTopUpSuccess = (amount: number, method: string) => {
-    setBalance((prev) => prev + amount);
-    showToast(
-      '💰 Top Up Sukses Bosku!',
-      `Saldo RDN bertambah +Rp ${amount.toLocaleString('id-ID')} via ${method}. Siap serok bawah!`,
-      'cuan'
-    );
+  const handleTopUpSuccess = async (amount: number, method: string) => {
+    try {
+      const response = await api.balance.topUp(amount, method);
+      
+      if (response.success && response.data) {
+        setBalance(response.data.newBalance);
+        showToast(
+          '💰 Top Up Sukses Bosku!',
+          `Saldo RDN bertambah +Rp ${amount.toLocaleString('id-ID')} via ${method}. Siap serok bawah!`,
+          'cuan'
+        );
 
-    // Add notification
-    const newNotif: MarketNotification = {
-      id: `notif-${Date.now()}`,
-      time: 'Baru saja',
-      title: 'Top Up Berhasil',
-      message: `Dana masuk Rp ${amount.toLocaleString('id-ID')} siap dipakai belanja saham.`,
-      type: 'cuan',
-    };
-    setNotifications((prev) => [newNotif, ...prev]);
+        // Add notification
+        const newNotif: MarketNotification = {
+          id: `notif-${Date.now()}`,
+          time: 'Baru saja',
+          title: 'Top Up Berhasil',
+          message: `Dana masuk Rp ${amount.toLocaleString('id-ID')} siap dipakai belanja saham.`,
+          type: 'cuan',
+        };
+        setNotifications((prev) => [newNotif, ...prev]);
+      }
+    } catch (err: any) {
+      showToast(
+        '❌ Top Up Gagal',
+        err.message || 'Terjadi kesalahan saat top up',
+        'info'
+      );
+    }
   };
 
   // Handle Add Holding
-  const handleAddHolding = (holdingData: Omit<PortfolioHolding, 'id'>) => {
-    const newHolding: PortfolioHolding = {
-      ...holdingData,
-      id: `hold-${Date.now()}`,
-    };
-    setHoldings((prev) => [newHolding, ...prev]);
-    showToast(
-      `📥 ${newHolding.symbol} Masuk Kandang!`,
-      `Berhasil mencatat ${newHolding.lots} lot pada harga avg ${newHolding.avgPrice.toLocaleString('id-ID')}.`,
-      'cuan'
-    );
+  const handleAddHolding = async (holdingData: Omit<PortfolioHolding, 'id'>) => {
+    try {
+      const response = await api.holdings.create({
+        symbol: holdingData.symbol,
+        name: holdingData.name,
+        avgPrice: holdingData.avgPrice,
+        currentPrice: holdingData.currentPrice,
+        lots: holdingData.lots,
+        notes: holdingData.notes,
+      });
+
+      if (response.success && response.data) {
+        // Reload holdings from API
+        const holdingsRes = await api.holdings.getAll();
+        if (holdingsRes.success && holdingsRes.data) {
+          setHoldings(holdingsRes.data);
+        }
+
+        showToast(
+          `📥 ${holdingData.symbol} Masuk Kandang!`,
+          `Berhasil mencatat ${holdingData.lots} lot pada harga avg ${holdingData.avgPrice.toLocaleString('id-ID')}.`,
+          'cuan'
+        );
+      }
+    } catch (err: any) {
+      showToast(
+        '❌ Gagal Menambahkan',
+        err.message || 'Terjadi kesalahan saat menambahkan holding',
+        'info'
+      );
+    }
   };
 
   // Handle Remove Holding
-  const handleRemoveHolding = (id: string) => {
+  const handleRemoveHolding = async (id: string) => {
     const target = holdings.find((h) => h.id === id);
-    setHoldings((prev) => prev.filter((h) => h.id !== id));
-    if (target) {
+    
+    try {
+      const response = await api.holdings.delete(id);
+      
+      if (response.success) {
+        // Reload holdings from API
+        const holdingsRes = await api.holdings.getAll();
+        if (holdingsRes.success && holdingsRes.data) {
+          setHoldings(holdingsRes.data);
+        }
+
+        if (target) {
+          showToast(
+            `🗑️ Tiket ${target.symbol} Dilepas`,
+            `Saham ${target.symbol} dikeluarkan dari kandang portofolio.`,
+            'info'
+          );
+        }
+      }
+    } catch (err: any) {
       showToast(
-        `🗑️ Tiket ${target.symbol} Dilepas`,
-        `Saham ${target.symbol} dikeluarkan dari kandang portofolio.`,
+        '❌ Gagal Menghapus',
+        err.message || 'Terjadi kesalahan saat menghapus holding',
         'info'
       );
     }
   };
 
   // Reset Data
-  const handleResetData = () => {
-    setHoldings(INITIAL_HOLDINGS);
-    setHistory(INITIAL_HISTORY);
-    setBalance(45230000);
-    setStocksMap(INITIAL_STOCKS);
-    setCurrentSymbol('BBCA');
-    showToast('🔄 Reset Sukses', 'Semua data telah dikembalikan ke kondisi default pabrik.', 'info');
+  const handleResetData = async () => {
+    try {
+      const response = await api.settings.reset();
+      
+      if (response.success) {
+        // Reload all data
+        await loadInitialData();
+        
+        showToast('🔄 Reset Sukses', 'Semua data telah dikembalikan ke kondisi default pabrik.', 'info');
+      }
+    } catch (err: any) {
+      showToast(
+        '❌ Reset Gagal',
+        err.message || 'Terjadi kesalahan saat reset data',
+        'info'
+      );
+    }
   };
 
   const availableStocksList = Object.values(stocksMap);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="bg-[#0b141c] text-[#dae3ee] min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7bdb80] mx-auto mb-4"></div>
+          <p className="text-lg">Loading data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#0b141c] text-[#dae3ee] min-h-screen flex antialiased selection:bg-[#238636] selection:text-[#f9fff3]">

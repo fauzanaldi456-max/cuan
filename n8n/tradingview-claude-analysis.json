@@ -1,0 +1,149 @@
+{
+  "name": "TradingView to Claude Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "tradingview-alert",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook - TradingView",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "your-unique-webhook-id"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "symbol",
+              "value": "={{$json.ticker}}"
+            },
+            {
+              "name": "price",
+              "value": "={{$json.close}}"
+            },
+            {
+              "name": "volume",
+              "value": "={{$json.volume}}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{$json.time}}"
+            }
+          ]
+        }
+      },
+      "name": "Extract Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"contents\":[{\"parts\":[{\"text\":\"Analyze stock {{$json.symbol}} at price {{$json.price}}. Provide: 1) Verdict (BULLISH/BEARISH/SIDEWAYS), 2) Score 0-100, 3) Brief analysis. Format: VERDICT: xxx\\nSCORE: xxx\\nANALYSIS: xxx\"}]}]}",
+        "options": {}
+      },
+      "name": "Claude AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response\nconst response = items[0].json.candidates[0].content.parts[0].text;\n\n// Extract verdict\nconst verdictMatch = response.match(/VERDICT[:\\s]+(BULLISH|BEARISH|SIDEWAYS)/i);\nconst verdict = verdictMatch ? verdictMatch[1] : 'SIDEWAYS';\n\n// Extract score\nconst scoreMatch = response.match(/SCORE[:\\s]+(\\d+)/i);\nconst score = scoreMatch ? parseInt(scoreMatch[1]) : 50;\n\n// Extract analysis\nconst analysisMatch = response.match(/ANALYSIS[:\\s]+(.+)/is);\nconst analysis = analysisMatch ? analysisMatch[1].trim() : response;\n\n// Determine status\nconst status = score >= 70 ? 'Bullish' : score >= 50 ? 'Sideways' : score >= 30 ? 'Berdarah' : 'Hati-Hati';\n\nreturn [{\n  json: {\n    id: Date.now().toString(),\n    symbol: items[0].json.symbol,\n    name: items[0].json.symbol + ' Stock',\n    price: parseFloat(items[0].json.price),\n    score: score,\n    verdict: verdict,\n    status: status,\n    analysis: analysis,\n    analyzedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": {
+          "__rl": true,
+          "value": "={{$env.GOOGLE_SHEETS_ID}}",
+          "mode": "id"
+        },
+        "range": "History!A:H",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        }
+      },
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1050, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "2",
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=🚨 *New Stock Analysis*\\n\\n*Stock:* {{$json.symbol}}\\n*Price:* Rp {{$json.price}}\\n*Score:* {{$json.score}}/100\\n*Verdict:* {{$json.verdict}}\\n*Status:* {{$json.status}}\\n\\n*Analysis:*\\n{{$json.analysis}}\\n\\n✅ Saved to history",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "name": "Send Telegram Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "3",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - TradingView": {
+      "main": [[{"node": "Extract Data", "type": "main", "index": 0}]]
+    },
+    "Extract Data": {
+      "main": [[{"node": "Claude AI Analysis", "type": "main", "index": 0}]]
+    },
+    "Claude AI Analysis": {
+      "main": [[{"node": "Parse AI Response", "type": "main", "index": 0}]]
+    },
+    "Parse AI Response": {
+      "main": [[{"node": "Save to Google Sheets", "type": "main", "index": 0}]]
+    },
+    "Save to Google Sheets": {
+      "main": [[{"node": "Send Telegram Notification", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "pinData": {},
+  "versionId": "1"
+}

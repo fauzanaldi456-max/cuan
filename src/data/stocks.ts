@@ -1,4 +1,5 @@
 import { StockData, StockScore, PortfolioHolding, HistoryItem, MarketNotification } from '../types';
+import { analyzeStock } from '../services/gemini';
 
 export const INITIAL_STOCKS: Record<string, StockData> = {
   BBCA: {
@@ -871,4 +872,47 @@ export function generateJametStock(symbol: string): StockData {
       },
     ],
   };
+}
+
+/**
+ * Enhance stock data with Gemini AI analysis
+ * This replaces mock scores with real AI analysis if API key is configured
+ */
+export async function enhanceStockWithAI(stock: StockData): Promise<StockData> {
+  try {
+    const analysis = await analyzeStock(stock.symbol, stock.name, stock.rawPrice);
+    
+    return {
+      ...stock,
+      scores: {
+        ...stock.scores,
+        total: analysis.score,
+        fund: analysis.fundamental,
+        tech: analysis.technical,
+        mom: analysis.momentum,
+        sent: analysis.sentiment,
+        verdict: analysis.verdict,
+      },
+      insight: analysis.insight,
+    };
+  } catch (error) {
+    console.error(`Failed to enhance ${stock.symbol} with AI:`, error);
+    return stock; // Return original if fails
+  }
+}
+
+/**
+ * Generate stock with optional AI enhancement
+ */
+export async function generateStockWithAI(symbol: string): Promise<StockData> {
+  const baseStock = generateJametStock(symbol);
+  
+  // Check if Gemini API is configured
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+    console.log(`Using mock analysis for ${symbol} - configure VITE_GEMINI_API_KEY for AI analysis`);
+    return baseStock;
+  }
+  
+  return enhanceStockWithAI(baseStock);
 }

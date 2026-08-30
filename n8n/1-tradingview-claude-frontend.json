@@ -1,0 +1,184 @@
+{
+  "name": "TradingView → Claude AI → Frontend",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "tradingview-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook: TradingView Alert",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "tradingview-alert"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract data from TradingView alert\nconst tvData = $input.first().json;\n\n// Parse TradingView message\nconst symbol = tvData.symbol || tvData.ticker || 'UNKNOWN';\nconst price = parseFloat(tvData.close || tvData.price || 0);\nconst volume = parseInt(tvData.volume || 0);\nconst timeframe = tvData.timeframe || tvData.interval || '1D';\n\n// Get chart screenshot URL (if provided)\nconst chartUrl = tvData.screenshot_url || tvData.chart_url || '';\n\nreturn {\n  json: {\n    symbol: symbol,\n    price: price,\n    volume: volume,\n    timeframe: timeframe,\n    chartUrl: chartUrl,\n    rawData: tvData,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "parse-tradingview-data",
+      "name": "Parse TradingView Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $credentials.geminiApiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents[0].parts[0].text",
+              "value": "={{ \"Analisis saham Indonesia berikut dengan gaya bahasa santai tapi profesional (gaya Jamet Stock Analyst):\\n\\nSimbol: \" + $json.symbol + \"\\nHarga: Rp \" + $json.price.toLocaleString('id-ID') + \"\\nVolume: \" + $json.volume.toLocaleString('id-ID') + \"\\nTimeframe: \" + $json.timeframe + \"\\n\\nBerikan analisis dalam format JSON berikut:\\n{\\n  \\\"verdict\\\": \\\"BULLISH/BEARISH/TO THE MOON/BERDARAH/SIDEWAYS\\\",\\n  \\\"score\\\": 0-100,\\n  \\\"fundamental_score\\\": 0-100,\\n  \\\"technical_score\\\": 0-100,\\n  \\\"momentum_score\\\": 0-100,\\n  \\\"sentiment_score\\\": 0-100,\\n  \\\"risk_score\\\": 0-100,\\n  \\\"insight\\\": \\\"1-2 kalimat singkat tentang kondisi saham\\\",\\n  \\\"recommendation\\\": \\\"BUY/HOLD/SELL dengan alasan singkat\\\"\\n}\\n\\nGunakan bahasa santai: cuan, gas, serok bawah, ATH, cut loss, dll. Jadilah spesifik dan realistis.\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "claude-analysis",
+      "name": "Claude AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude AI response\nconst response = $input.first().json;\nconst aiText = response.candidates[0]?.content?.parts[0]?.text || '{}';\n\n// Extract JSON from response\nlet analysis = {};\ntry {\n  // Try to parse as JSON\n  const jsonMatch = aiText.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    analysis = JSON.parse(jsonMatch[0]);\n  }\n} catch (error) {\n  // Fallback parsing\n  analysis = {\n    verdict: 'SIDEWAYS',\n    score: 50,\n    fundamental_score: 50,\n    technical_score: 50,\n    momentum_score: 50,\n    sentiment_score: 50,\n    risk_score: 50,\n    insight: aiText.substring(0, 200),\n    recommendation: 'HOLD - Tunggu konfirmasi lebih lanjut'\n  };\n}\n\n// Get stock name (you can add API call to get company name)\nconst stockNames = {\n  'BBCA': 'PT Bank Central Asia Tbk.',\n  'BBRI': 'PT Bank Rakyat Indonesia Tbk.',\n  'BMRI': 'PT Bank Mandiri Tbk.',\n  'TLKM': 'PT Telkom Indonesia Tbk.',\n  'ASII': 'PT Astra International Tbk.',\n  'GOTO': 'PT GoTo Gojek Tokopedia Tbk.',\n  'BREN': 'PT Barito Renewables Energy Tbk.',\n  'ADRO': 'PT Adaro Energy Indonesia Tbk.'\n};\n\nconst symbol = $node[\"Parse TradingView Data\"].json.symbol;\nconst price = $node[\"Parse TradingView Data\"].json.price;\n\nreturn {\n  json: {\n    symbol: symbol,\n    name: stockNames[symbol] || `PT ${symbol} Tbk.`,\n    price: price,\n    score: analysis.score || 50,\n    verdict: analysis.verdict || 'SIDEWAYS',\n    status: analysis.verdict || 'Sideways',\n    fundamental_score: analysis.fundamental_score || 50,\n    technical_score: analysis.technical_score || 50,\n    momentum_score: analysis.momentum_score || 50,\n    sentiment_score: analysis.sentiment_score || 50,\n    risk_score: analysis.risk_score || 50,\n    insight: analysis.insight || 'Analisis sedang diproses',\n    recommendation: analysis.recommendation || 'HOLD',\n    analyzed_at: new Date().toISOString(),\n    source: 'tradingview',\n    raw_ai_response: aiText\n  }\n};"
+      },
+      "id": "parse-ai-response",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FRONTEND_WEBHOOK_URL }}/api/webhook/analysis",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"source\": \"n8n\",\n  \"timestamp\": $now.toISO(),\n  \"data\": $json\n} }}",
+        "options": {}
+      },
+      "id": "send-to-frontend",
+      "name": "Send to Frontend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"message\": \"Analysis completed for \" + $node[\"Parse AI Response\"].json.symbol,\n  \"symbol\": $node[\"Parse AI Response\"].json.symbol,\n  \"score\": $node[\"Parse AI Response\"].json.score\n} }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"chat_id\": $env.TELEGRAM_CHAT_ID,\n  \"text\": \"📊 *Analisis Saham Baru*\\n\\n\" +\n         \"🏢 *\" + $node[\"Parse AI Response\"].json.symbol + \"* - \" + $node[\"Parse AI Response\"].json.name + \"\\n\" +\n         \"💰 Harga: Rp \" + $node[\"Parse AI Response\"].json.price.toLocaleString('id-ID') + \"\\n\" +\n         \"📈 Score: \" + $node[\"Parse AI Response\"].json.score + \"/100\\n\" +\n         \"🎯 Verdict: \" + $node[\"Parse AI Response\"].json.verdict + \"\\n\\n\" +\n         \"💡 *Insight:*\\n\" + $node[\"Parse AI Response\"].json.insight + \"\\n\\n\" +\n         \"✅ *Rekomendasi:*\\n\" + $node[\"Parse AI Response\"].json.recommendation,\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "options": {}
+      },
+      "id": "send-telegram-notification",
+      "name": "Send Telegram Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1130, 500]
+    }
+  ],
+  "connections": {
+    "Webhook: TradingView Alert": {
+      "main": [
+        [
+          {
+            "node": "Parse TradingView Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse TradingView Data": {
+      "main": [
+        [
+          {
+            "node": "Claude AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Send to Frontend",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Telegram Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Frontend": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-08-27T00:00:00.000Z",
+  "versionId": "1"
+}
