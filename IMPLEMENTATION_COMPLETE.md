@@ -140,7 +140,7 @@
 
 | Service | Tier | Monthly Cost |
 |---------|------|--------------|
-| **n8n** (Sumopos) | Free (5000 exec/month) | **Rp 0** |
+| **n8n** (Sumofofd VPS) | Paid VPS | **Berbayar (Sesuai VPS)** |
 | **Gemini AI** | Free (60 req/min) | **Rp 0** |
 | **Telegram Bot** | Free (unlimited) | **Rp 0** |
 | **Vercel Hosting** | Hobby (100GB) | **Rp 0** |
