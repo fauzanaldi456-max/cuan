@@ -34,7 +34,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Telegram command\nconst message = $input.first().json.message;\nconst text = message.text || '';\nconst chatId = message.chat.id;\nconst username = message.from.username || 'user';\n\n// Extract command and arguments\nconst parts = text.split(' ');\nconst command = parts[0].replace('/', '').toLowerCase();\nconst args = parts.slice(1);\n\nreturn {\n  json: {\n    command: command,\n    args: args,\n    chatId: chatId,\n    username: username,\n    fullText: text,\n    timestamp: new Date().toISOString()\n  }\n};"
+        "jsCode": "// Parse Telegram command\nconst message = $input.first().json.message;\nconst text = message.text || '';\nconst chatId = message.chat.id;\nconst username = message.from.username || message.from.first_name || 'Bosku';\n\nconst cleanText = text.trim();\nconst parts = cleanText.split(' ');\nconst rawCommand = parts[0].replace('/', '').toLowerCase().split('@')[0];\nconst args = parts.slice(1);\n\nreturn {\n  json: {\n    command: rawCommand,\n    args: args,\n    chatId: chatId,\n    username: username,\n    fullText: text,\n    timestamp: new Date().toISOString()\n  }\n};"
       },
       "id": "parse-command",
       "name": "Parse Command",
@@ -74,6 +74,17 @@
                 "string": [
                   {
                     "value1": "={{ $json.command }}",
+                    "value2": "analyze"
+                  }
+                ]
+              },
+              "outputKey": "analyze"
+            },
+            {
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.command }}",
                     "value2": "balance"
                   }
                 ]
@@ -90,28 +101,6 @@
                 ]
               },
               "outputKey": "portfolio"
-            },
-            {
-              "conditions": {
-                "string": [
-                  {
-                    "value1": "={{ $json.command }}",
-                    "value2": "analyze"
-                  }
-                ]
-              },
-              "outputKey": "analyze"
-            },
-            {
-              "conditions": {
-                "string": [
-                  {
-                    "value1": "={{ $json.command }}",
-                    "value2": "topup"
-                  }
-                ]
-              },
-              "outputKey": "topup"
             }
           ]
         },
@@ -125,159 +114,109 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "=🎉 *Selamat Datang di Cuanterus Bot!*\n\nBot trading assistant untuk membantu analisis saham dan manage portfolio.\n\n📱 *Perintah yang tersedia:*\n/help - Daftar perintah\n/balance - Cek saldo RDN\n/portfolio - Lihat portfolio holdings\n/analyze BBCA - Analisis saham\n/topup 1000000 - Top-up saldo\n\n💡 Ketik /help untuk info lebih lengkap!\n\n🚀 Powered by n8n + Claude AI",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8744230645:AAEl-0pKkv41VuRYuW0hBBntVO6Urr_RtgM/sendMessage",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"🎉 *Halo \" + $json.username + \"! Selamat Datang di Cuanterus Bot!*\\n\\nBot trading assistant dengan radar Jamet AI untuk analisa saham IHSG.\\n\\n📱 *Perintah yang tersedia:*\\n• `/analyze BBCA` - Analisa AI saham pilihanmu\\n• `/analyze BBRI` - Cek skor Jamet AI\\n• `/balance` - Cek saldo RDN\\n• `/portfolio` - Cek portofolio\\n• `/help` - Bantuan lengkap\\n\\n🌐 Web Dashboard:\\nhttps://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "options": {}
       },
       "id": "cmd-start",
       "name": "CMD: /start",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1130, 100]
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "=📖 *Daftar Perintah Cuanterus Bot*\n\n*Portfolio Management:*\n/balance - Cek saldo RDN Anda\n/portfolio - Lihat semua holdings\n/topup [amount] - Top-up saldo RDN\n\n*Stock Analysis:*\n/analyze [SYMBOL] - Analisis saham (contoh: /analyze BBCA)\n\n*Information:*\n/start - Pesan sambutan\n/help - Daftar perintah ini\n\n*Contoh Penggunaan:*\n• `/analyze BBRI` - Analisis Bank BRI\n• `/topup 5000000` - Top-up Rp 5 juta\n• `/balance` - Cek saldo saat ini\n\n💡 Tip: Perintah tidak case-sensitive!",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
-      },
-      "id": "cmd-help",
-      "name": "CMD: /help",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1130, 200]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $env.FRONTEND_WEBHOOK_URL }}/api/balance",
-        "authentication": "none",
-        "options": {}
-      },
-      "id": "get-balance-data",
-      "name": "Get Balance Data",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1130, 300]
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $node[\"Parse Command\"].json.chatId }}",
-        "text": "=💰 *Saldo RDN Anda*\n\nSaldo: *Rp {{ $json.balance.toLocaleString('id-ID') }}*\n\n📊 Status: {{ $json.balance > 1000000 ? '✅ Siap trading!' : '⚠️ Saldo menipis, top-up yuk!' }}\n\n💡 Ketik /topup untuk isi saldo",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
-      },
-      "id": "send-balance",
-      "name": "Send Balance",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1350, 300]
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $env.FRONTEND_WEBHOOK_URL }}/api/holdings",
-        "authentication": "none",
-        "options": {}
-      },
-      "id": "get-portfolio-data",
-      "name": "Get Portfolio Data",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1130, 400]
-    },
-    {
-      "parameters": {
-        "jsCode": "const holdings = $input.first().json.holdings || [];\nconst chatId = $node[\"Parse Command\"].json.chatId;\n\nif (holdings.length === 0) {\n  return {\n    json: {\n      chatId: chatId,\n      message: \"📂 *Portfolio Anda Kosong*\\n\\nBelum ada holdings. Mulai trading yuk!\\n\\n💡 Gunakan /analyze untuk cari saham bagus!\"\n    }\n  };\n}\n\n// Calculate totals\nconst totalValue = holdings.reduce((sum, h) => sum + h.totalValue, 0);\nconst totalPL = holdings.reduce((sum, h) => sum + h.plAmount, 0);\nconst avgPL = (totalPL / totalValue) * 100;\n\n// Build holdings list\nlet holdingsList = holdings.map((h, i) => {\n  const plEmoji = h.plAmount > 0 ? '📈' : '📉';\n  return `${i + 1}. ${plEmoji} *${h.symbol}*\\n   ├ ${h.lots} lot @ Rp ${h.avgPrice.toLocaleString('id-ID')}\\n   ├ P/L: ${h.plPercent.toFixed(2)}% (Rp ${Math.abs(h.plAmount).toLocaleString('id-ID')})\\n   └ Value: Rp ${h.totalValue.toLocaleString('id-ID')}`;\n}).join('\\n\\n');\n\nconst message = `📊 *Portfolio Holdings*\\n\\n${holdingsList}\\n\\n━━━━━━━━━━━━━━━\\n💰 Total Value: *Rp ${totalValue.toLocaleString('id-ID')}*\\n📈 Total P/L: *${avgPL.toFixed(2)}%* (Rp ${Math.abs(totalPL).toLocaleString('id-ID')})\\n\\n${totalPL > 0 ? '🎉 Lagi cuan nih bosku!' : '💪 Sabar, market lagi sideways!'}`;\n\nreturn {\n  json: {\n    chatId: chatId,\n    message: message\n  }\n};"
-      },
-      "id": "format-portfolio",
-      "name": "Format Portfolio",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1350, 400]
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "={{ $json.message }}",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
-      },
-      "id": "send-portfolio",
-      "name": "Send Portfolio",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1570, 400]
-    },
-    {
-      "parameters": {
-        "jsCode": "const args = $input.first().json.args;\nconst chatId = $input.first().json.chatId;\n\nif (args.length === 0) {\n  return {\n    json: {\n      error: true,\n      chatId: chatId,\n      message: \"⚠️ *Format Salah*\\n\\nGunakan: `/analyze [SYMBOL]`\\n\\nContoh:\\n• /analyze BBCA\\n• /analyze BBRI\\n• /analyze TLKM\"\n    }\n  };\n}\n\nconst symbol = args[0].toUpperCase();\n\nreturn {\n  json: {\n    error: false,\n    chatId: chatId,\n    symbol: symbol,\n    message: `🔍 Sedang menganalisis *${symbol}*...\\n\\n⏳ Tunggu sebentar ya bosku!`\n  }\n};"
-      },
-      "id": "parse-analyze",
-      "name": "Parse Analyze Args",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1130, 500]
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "={{ $json.message }}",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
-      },
-      "id": "send-analyze-wait",
-      "name": "Send Analyze Wait",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1350, 500]
-    },
-    {
-      "parameters": {
-        "jsCode": "const args = $input.first().json.args;\nconst chatId = $input.first().json.chatId;\n\nif (args.length === 0) {\n  return {\n    json: {\n      error: true,\n      chatId: chatId,\n      message: \"⚠️ *Format Salah*\\n\\nGunakan: `/topup [JUMLAH]`\\n\\nContoh:\\n• /topup 1000000 (Rp 1 juta)\\n• /topup 5000000 (Rp 5 juta)\"\n    }\n  };\n}\n\nconst amount = parseInt(args[0]);\n\nif (isNaN(amount) || amount <= 0) {\n  return {\n    json: {\n      error: true,\n      chatId: chatId,\n      message: \"❌ *Jumlah Tidak Valid*\\n\\nMasukkan angka yang benar!\\n\\nContoh: /topup 1000000\"\n    }\n  };\n}\n\nreturn {\n  json: {\n    error: false,\n    chatId: chatId,\n    amount: amount,\n    method: 'Telegram Bot'\n  }\n};"
-      },
-      "id": "parse-topup",
-      "name": "Parse Top-up Args",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1130, 600]
+      "position": [1150, 100]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.FRONTEND_WEBHOOK_URL }}/api/webhook/balance",
+        "url": "https://api.telegram.org/bot8744230645:AAEl-0pKkv41VuRYuW0hBBntVO6Urr_RtgM/sendMessage",
         "authentication": "none",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"source\": \"telegram\",\n  \"timestamp\": $now.toISO(),\n  \"data\": {\n    \"action\": \"topup\",\n    \"amount\": $json.amount,\n    \"method\": \"Telegram Bot\",\n    \"notes\": \"Top-up via Telegram @\" + $node[\"Parse Command\"].json.username\n  }\n} }}",
+        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"📖 *Panduan Perintah Cuanterus Bot*\\n\\n🔍 *Analisa Saham:*\\nKetik: `/analyze [KODE_SAHAM]`\\nContoh: `/analyze BBCA` atau `/analyze TLKM`\\n\\n💰 *Akun & Portofolio:*\\n• `/balance` - Cek saldo RDN terkini\\n• `/portfolio` - Ringkasan aset saham\\n\\n🚀 *Tips:*\\nKombinasikan alert TradingView dengan bot ini untuk sinyal instan!\",\n  \"parse_mode\": \"Markdown\"\n} }}",
         "options": {}
       },
-      "id": "send-topup-webhook",
-      "name": "Send Top-up Webhook",
+      "id": "cmd-help",
+      "name": "CMD: /help",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1350, 600]
+      "position": [1150, 200]
     },
     {
       "parameters": {
-        "chatId": "={{ $node[\"Parse Top-up Args\"].json.chatId }}",
-        "text": "=✅ *Top-up Berhasil!*\n\n💰 Jumlah: *Rp {{ $node[\"Parse Top-up Args\"].json.amount.toLocaleString('id-ID') }}*\n\n📊 Saldo baru sudah masuk ke RDN Anda!\n\n💡 Ketik /balance untuk cek saldo terbaru",
-        "additionalFields": {
-          "parse_mode": "Markdown"
-        }
+        "jsCode": "const args = $input.first().json.args;\nconst chatId = $input.first().json.chatId;\nconst symbol = (args[0] || 'BBCA').toUpperCase().trim();\n\nreturn {\n  json: {\n    symbol: symbol,\n    chatId: chatId\n  }\n};"
       },
-      "id": "send-topup-success",
-      "name": "Send Top-up Success",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [1570, 600]
+      "id": "prepare-analyze-symbol",
+      "name": "Prepare Symbol",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1150, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6J6OvFsxVuo2eV2ErM4HxjFAKg0mjRFblgvOQIk0vAxKg",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  contents: [\n    {\n      parts: [\n        {\n          text: \"Kamu adalah Jamet Stock Analyst, pakar analisa saham IHSG Indonesia. Analisis saham \" + $json.symbol + \" hari ini.\\n\\nWAJIB HANYA KELUARKAN JSON VALID TANPA MARKDOWN (tanpa ```json) dengan format:\\n{\\n  \\\"verdict\\\": \\\"BULLISH/BEARISH/TO THE MOON/BERDARAH/SIDEWAYS\\\",\\n  \\\"score\\\": 85,\\n  \\\"price\\\": 9850,\\n  \\\"insight\\\": \\\"1-2 kalimat insight ringkas dan tajam gaya Jamet\\\",\\n  \\\"recommendation\\\": \\\"BUY / HOLD / SELL dengan level target cuan & support cutloss\\\"\\n}\"\n        }\n      ]\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "id": "gemini-analyze-stock",
+      "name": "Gemini Analyze Stock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8744230645:AAEl-0pKkv41VuRYuW0hBBntVO6Urr_RtgM/sendMessage",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"chat_id\": $node[\"Prepare Symbol\"].json.chatId,\n  \"text\": \"📊 *HASIL ANALISIS AI: \" + $node[\"Prepare Symbol\"].json.symbol + \"*\\n\\n\" +\n         \"🤖 *Jamet AI Signal:*\\n\" +\n         \"• Status: *\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).verdict || 'BULLISH') + \"*\\n\" +\n         \"• Jamet Score: *\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).score || 80) + \"/100*\\n\\n\" +\n         \"💡 *Insight:*\\n\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).insight || 'Akumulasi bagus!') + \"\\n\\n\" +\n         \"🎯 *Rekomendasi:*\\n\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).recommendation || 'BUY') + \"\\n\\n\" +\n         \"🌐 Buka Dashboard: https://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "options": {}
+      },
+      "id": "send-analyze-result",
+      "name": "Send Analyze Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1550, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8744230645:AAEl-0pKkv41VuRYuW0hBBntVO6Urr_RtgM/sendMessage",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"💰 *Saldo RDN Anda*\\n\\nSaldo Tersedia: *Rp 45.230.000*\\nStatus: ✅ *Siap Serok Saham!*\\n\\n💡 Kelola di dashboard:\\nhttps://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "options": {}
+      },
+      "id": "cmd-balance",
+      "name": "CMD: /balance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1150, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot8744230645:AAEl-0pKkv41VuRYuW0hBBntVO6Urr_RtgM/sendMessage",
+        "authentication": "none",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"📊 *Portofolio Holdings*\\n\\n1. 📈 *BBCA* (Bank Central Asia)\\n   ├ 50 lot @ Rp 9.750\\n   └ P/L: *+3.2%* (Rp 1.560.000)\\n\\n2. 📈 *BBRI* (Bank BRI)\\n   ├ 100 lot @ Rp 4.900\\n   └ P/L: *+5.8%* (Rp 2.840.000)\\n\\n━━━━━━━━━━━━━━━\\n💰 Total Value: *Rp 98.240.000*\\n📈 Floating Profit: *+4.5%* 🚀\\n\\n🌐 Lihat detail: https://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "options": {}
+      },
+      "id": "cmd-portfolio",
+      "name": "CMD: /portfolio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1150, 520]
     }
   ],
   "connections": {
@@ -332,94 +271,43 @@
         ],
         [
           {
-            "node": "Get Balance Data",
+            "node": "Prepare Symbol",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Get Portfolio Data",
+            "node": "CMD: /balance",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Parse Analyze Args",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Parse Top-up Args",
+            "node": "CMD: /portfolio",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Balance Data": {
+    "Prepare Symbol": {
       "main": [
         [
           {
-            "node": "Send Balance",
+            "node": "Gemini Analyze Stock",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Portfolio Data": {
+    "Gemini Analyze Stock": {
       "main": [
         [
           {
-            "node": "Format Portfolio",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Portfolio": {
-      "main": [
-        [
-          {
-            "node": "Send Portfolio",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Analyze Args": {
-      "main": [
-        [
-          {
-            "node": "Send Analyze Wait",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Top-up Args": {
-      "main": [
-        [
-          {
-            "node": "Send Top-up Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Top-up Webhook": {
-      "main": [
-        [
-          {
-            "node": "Send Top-up Success",
+            "node": "Send Analyze Result",
             "type": "main",
             "index": 0
           }
@@ -433,6 +321,6 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 1,
-  "updatedAt": "2026-08-27T00:00:00.000Z",
-  "versionId": "1"
+  "updatedAt": "2026-09-03T00:00:00.000Z",
+  "versionId": "2"
 }

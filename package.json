@@ -7,6 +7,8 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "webhook": "tsx api/server.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run webhook\"",
+    "n8n:docker": "docker run -it --rm --name n8n -p 5678:5678 -v cuanterus_n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n",
+    "tunnel": "npx localtunnel --port 5678",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
