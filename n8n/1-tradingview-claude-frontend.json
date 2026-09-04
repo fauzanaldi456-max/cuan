@@ -53,7 +53,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://cuan-delta.vercel.app/api/analysis",
+        "url": "https://bottrading.my.id/api/analysis",
         "authentication": "none",
         "sendBody": true,
         "specifyBody": "json",
@@ -85,7 +85,7 @@
         "authentication": "none",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"chat_id\": 1950946860,\n  \"text\": \"🚀 *ANALISIS SAHAM BARU (JAMET AI)*\\n\\n\" +\n         \"🏢 *\" + $node[\"Parse AI Response\"].json.symbol + \"* - \" + $node[\"Parse AI Response\"].json.name + \"\\n\" +\n         \"💰 Harga: Rp \" + $node[\"Parse AI Response\"].json.price.toLocaleString('id-ID') + \"\\n\" +\n         \"📈 Jamet Score: *\" + $node[\"Parse AI Response\"].json.score + \"/100*\\n\" +\n         \"🎯 Status: *\" + $node[\"Parse AI Response\"].json.verdict + \"*\\n\\n\" +\n         \"💡 *Insight:*\\n\" + $node[\"Parse AI Response\"].json.insight + \"\\n\\n\" +\n         \"✅ *Rekomendasi:*\\n\" + $node[\"Parse AI Response\"].json.recommendation + \"\\n\\n\" +\n         \"🌐 Dashboard: https://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "jsonBody": "={{ {\n  \"chat_id\": 1950946860,\n  \"text\": \"🚀 *ANALISIS SAHAM BARU (JAMET AI)*\\n\\n\" +\n         \"🏢 *\" + $node[\"Parse AI Response\"].json.symbol + \"* - \" + $node[\"Parse AI Response\"].json.name + \"\\n\" +\n         \"💰 Harga: Rp \" + $node[\"Parse AI Response\"].json.price.toLocaleString('id-ID') + \"\\n\" +\n         \"📈 Jamet Score: *\" + $node[\"Parse AI Response\"].json.score + \"/100*\\n\" +\n         \"🎯 Status: *\" + $node[\"Parse AI Response\"].json.verdict + \"*\\n\\n\" +\n         \"💡 *Insight:*\\n\" + $node[\"Parse AI Response\"].json.insight + \"\\n\\n\" +\n         \"✅ *Rekomendasi:*\\n\" + $node[\"Parse AI Response\"].json.recommendation + \"\\n\\n\" +\n         \"🌐 Dashboard: https://bottrading.my.id/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
         "options": {}
       },
       "id": "send-telegram-notification",

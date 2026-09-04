@@ -119,7 +119,7 @@
         "authentication": "none",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"🎉 *Halo \" + $json.username + \"! Selamat Datang di Cuanterus Bot!*\\n\\nBot trading assistant dengan radar Jamet AI untuk analisa saham IHSG.\\n\\n📱 *Perintah yang tersedia:*\\n• `/analyze BBCA` - Analisa AI saham pilihanmu\\n• `/analyze BBRI` - Cek skor Jamet AI\\n• `/balance` - Cek saldo RDN\\n• `/portfolio` - Cek portofolio\\n• `/help` - Bantuan lengkap\\n\\n🌐 Web Dashboard:\\nhttps://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"🎉 *Halo \" + $json.username + \"! Selamat Datang di Cuanterus Bot!*\\n\\nBot trading assistant dengan radar Jamet AI untuk analisa saham IHSG.\\n\\n📱 *Perintah yang tersedia:*\\n• `/analyze BBCA` - Analisa AI saham pilihanmu\\n• `/analyze BBRI` - Cek skor Jamet AI\\n• `/balance` - Cek saldo RDN\\n• `/portfolio` - Cek portofolio\\n• `/help` - Bantuan lengkap\\n\\n🌐 Web Dashboard:\\nhttps://bottrading.my.id/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
         "options": {}
       },
       "id": "cmd-start",
@@ -177,7 +177,7 @@
         "authentication": "none",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"chat_id\": $node[\"Prepare Symbol\"].json.chatId,\n  \"text\": \"📊 *HASIL ANALISIS AI: \" + $node[\"Prepare Symbol\"].json.symbol + \"*\\n\\n\" +\n         \"🤖 *Jamet AI Signal:*\\n\" +\n         \"• Status: *\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).verdict || 'BULLISH') + \"*\\n\" +\n         \"• Jamet Score: *\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).score || 80) + \"/100*\\n\\n\" +\n         \"💡 *Insight:*\\n\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).insight || 'Akumulasi bagus!') + \"\\n\\n\" +\n         \"🎯 *Rekomendasi:*\\n\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).recommendation || 'BUY') + \"\\n\\n\" +\n         \"🌐 Buka Dashboard: https://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "jsonBody": "={{ {\n  \"chat_id\": $node[\"Prepare Symbol\"].json.chatId,\n  \"text\": \"📊 *HASIL ANALISIS AI: \" + $node[\"Prepare Symbol\"].json.symbol + \"*\\n\\n\" +\n         \"🤖 *Jamet AI Signal:*\\n\" +\n         \"• Status: *\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).verdict || 'BULLISH') + \"*\\n\" +\n         \"• Jamet Score: *\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).score || 80) + \"/100*\\n\\n\" +\n         \"💡 *Insight:*\\n\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).insight || 'Akumulasi bagus!') + \"\\n\\n\" +\n         \"🎯 *Rekomendasi:*\\n\" + (JSON.parse($json.candidates[0].content.parts[0].text.match(/\\{[\\s\\S]*\\}/)[0]).recommendation || 'BUY') + \"\\n\\n\" +\n         \"🌐 Buka Dashboard: https://bottrading.my.id/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
         "options": {}
       },
       "id": "send-analyze-result",
@@ -193,7 +193,7 @@
         "authentication": "none",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"💰 *Saldo RDN Anda*\\n\\nSaldo Tersedia: *Rp 45.230.000*\\nStatus: ✅ *Siap Serok Saham!*\\n\\n💡 Kelola di dashboard:\\nhttps://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"💰 *Saldo RDN Anda*\\n\\nSaldo Tersedia: *Rp 45.230.000*\\nStatus: ✅ *Siap Serok Saham!*\\n\\n💡 Kelola di dashboard:\\nhttps://bottrading.my.id/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
         "options": {}
       },
       "id": "cmd-balance",
@@ -209,7 +209,7 @@
         "authentication": "none",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"📊 *Portofolio Holdings*\\n\\n1. 📈 *BBCA* (Bank Central Asia)\\n   ├ 50 lot @ Rp 9.750\\n   └ P/L: *+3.2%* (Rp 1.560.000)\\n\\n2. 📈 *BBRI* (Bank BRI)\\n   ├ 100 lot @ Rp 4.900\\n   └ P/L: *+5.8%* (Rp 2.840.000)\\n\\n━━━━━━━━━━━━━━━\\n💰 Total Value: *Rp 98.240.000*\\n📈 Floating Profit: *+4.5%* 🚀\\n\\n🌐 Lihat detail: https://cuan-delta.vercel.app/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
+        "jsonBody": "={{ {\n  \"chat_id\": $json.chatId,\n  \"text\": \"📊 *Portofolio Holdings*\\n\\n1. 📈 *BBCA* (Bank Central Asia)\\n   ├ 50 lot @ Rp 9.750\\n   └ P/L: *+3.2%* (Rp 1.560.000)\\n\\n2. 📈 *BBRI* (Bank BRI)\\n   ├ 100 lot @ Rp 4.900\\n   └ P/L: *+5.8%* (Rp 2.840.000)\\n\\n━━━━━━━━━━━━━━━\\n💰 Total Value: *Rp 98.240.000*\\n📈 Floating Profit: *+4.5%* 🚀\\n\\n🌐 Lihat detail: https://bottrading.my.id/\",\n  \"parse_mode\": \"Markdown\"\n} }}",
         "options": {}
       },
       "id": "cmd-portfolio",
